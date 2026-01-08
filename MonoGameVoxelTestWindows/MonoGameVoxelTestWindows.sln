@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoGameVoxelTestWindows", "MonoGameVoxelTestWindows.csproj", "{0F154CD3-5131-9746-F701-8E3CCDAD9F89}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0F154CD3-5131-9746-F701-8E3CCDAD9F89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0F154CD3-5131-9746-F701-8E3CCDAD9F89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0F154CD3-5131-9746-F701-8E3CCDAD9F89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0F154CD3-5131-9746-F701-8E3CCDAD9F89}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9F937BE0-1A78-41B7-9BE7-A09BFB76F19B}
+	EndGlobalSection
+EndGlobal
