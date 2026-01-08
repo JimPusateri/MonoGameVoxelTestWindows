@@ -11,10 +11,17 @@ public class Game1 : Game
     private GraphicsDeviceManager _graphics;
     private BasicEffect _effect;
     private FpsCamera _camera;
-    private IBlockAccessor _world;
+    private ArrayWorld _world;
+    private DestructibleBlockLayer _destructibleLayer;
+    private CompositeBlockAccessor _compositeAccessor;
     private SpriteBatch _spriteBatch;
     private SpriteFont _debugFont;
 
+    private MouseState _previousMouseState;
+    private double? _respawnTimer;
+    private const float RaycastDistance = 100f;
+    private const double RespawnDelay = 5.0;
+    private static readonly Vector3Int PileOrigin = new Vector3Int(29, 4, 64);
 
     private readonly List<Chunk> _chunks = new();
 
@@ -86,6 +93,14 @@ public class Game1 : Game
                 blocks[x, y, z] = BlockType.Stone;
 
         _world = new ArrayWorld(blocks);
+        
+        // Initialize destructible layer and composite accessor
+        _destructibleLayer = new DestructibleBlockLayer();
+        _compositeAccessor = new CompositeBlockAccessor(_destructibleLayer, _world);
+        
+        // Spawn initial pile
+        _destructibleLayer.AddPile(PileOrigin);
+        
         int chunksX = (worldX + VoxelConstants.ChunkSize - 1) / VoxelConstants.ChunkSize;
         int chunksY = (worldY + VoxelConstants.ChunkSize - 1) / VoxelConstants.ChunkSize;
         int chunksZ = (worldZ + VoxelConstants.ChunkSize - 1) / VoxelConstants.ChunkSize;
@@ -95,8 +110,8 @@ public class Game1 : Game
                 for (int cx = 0; cx < chunksX; cx++)
                 {
                     var chunk = new Chunk(GraphicsDevice, atlas, cx, cy, cz);
-                    chunk.GenerateFromWorld(_world);
-                    chunk.RebuildMesh(_world);
+                    chunk.GenerateFromWorld(_compositeAccessor);
+                    chunk.RebuildMesh(_compositeAccessor);
                     _chunks.Add(chunk);
                 }
     }
@@ -109,12 +124,142 @@ public class Game1 : Game
         bool windowActive = IsActive;
         _camera.Update(gameTime, windowActive);
 
+        // Handle block destruction on left mouse click
+        var currentMouseState = Mouse.GetState();
+        if (windowActive && currentMouseState.LeftButton == ButtonState.Pressed && 
+            _previousMouseState.LeftButton == ButtonState.Released)
+        {
+            Console.WriteLine($"Mouse clicked! Camera pos: {_camera.Position}, Forward: {_camera.Forward()}");
+            TryDestroyBlock(gameTime);
+        }
+        _previousMouseState = currentMouseState;
+
+        // Handle respawn timer
+        if (_respawnTimer.HasValue)
+        {
+            if (gameTime.TotalGameTime.TotalSeconds >= _respawnTimer.Value)
+            {
+                // Respawn pile
+                _destructibleLayer.AddPile(PileOrigin);
+                _respawnTimer = null;
+                
+                // Mark affected chunks dirty
+                MarkChunksDirtyInRegion(PileOrigin.X, PileOrigin.Y, PileOrigin.Z, 6, 4, 10);
+            }
+        }
+
         // Rebuild any dirty chunks
         for (int i = 0; i < _chunks.Count; i++)
+        {
             if (_chunks[i].Dirty)
-                _chunks[i].RebuildMesh(_world);
+            {
+                _chunks[i].GenerateFromWorld(_compositeAccessor);
+                _chunks[i].RebuildMesh(_compositeAccessor);
+            }
+        }
 
         base.Update(gameTime);
+    }
+
+    private void TryDestroyBlock(GameTime gameTime)
+    {
+        // Get mouse position and convert to world ray
+        var mouseState = Mouse.GetState();
+        
+        // Unproject near and far points to get the ray in world space
+        Vector3 nearPoint = GraphicsDevice.Viewport.Unproject(
+            new Vector3(mouseState.X, mouseState.Y, 0),
+            _camera.Projection,
+            _camera.View,
+            Matrix.Identity);
+        Vector3 farPoint = GraphicsDevice.Viewport.Unproject(
+            new Vector3(mouseState.X, mouseState.Y, 1),
+            _camera.Projection,
+            _camera.View,
+            Matrix.Identity);
+        
+        Vector3 rayDirection = Vector3.Normalize(farPoint - nearPoint);
+        
+        Console.WriteLine($"TryDestroyBlock called - Mouse: ({mouseState.X}, {mouseState.Y})");
+        Console.WriteLine($"Ray origin: {nearPoint}, direction: {rayDirection}");
+        
+        // Raycast specifically for destructible blocks only
+        if (VoxelRaycast.Raycast(_destructibleLayer, nearPoint, rayDirection, 
+            RaycastDistance, out var hitBlock))
+        {
+            Console.WriteLine($"Hit destructible block at: {hitBlock.X}, {hitBlock.Y}, {hitBlock.Z}");
+            var blockType = _destructibleLayer.GetBlock(hitBlock.X, hitBlock.Y, hitBlock.Z);
+            Console.WriteLine($"Block type: {blockType}");
+            
+            // Destroy block
+            Console.WriteLine("Destroying block!");
+            _destructibleLayer.RemoveBlock(hitBlock.X, hitBlock.Y, hitBlock.Z);
+            
+            // Mark affected chunks dirty
+            MarkChunkDirtyAt(hitBlock.X, hitBlock.Y, hitBlock.Z);
+            
+            // If all blocks destroyed, start respawn timer
+            if (_destructibleLayer.Count == 0 && !_respawnTimer.HasValue)
+            {
+                Console.WriteLine("All blocks destroyed, starting respawn timer");
+                _respawnTimer = gameTime.TotalGameTime.TotalSeconds + RespawnDelay;
+            }
+        }
+        else
+        {
+            Console.WriteLine("Raycast missed - no destructible block hit");
+        }
+    }
+
+    private void MarkChunkDirtyAt(int wx, int wy, int wz)
+    {
+        int cx = wx / VoxelConstants.ChunkSize;
+        int cy = wy / VoxelConstants.ChunkSize;
+        int cz = wz / VoxelConstants.ChunkSize;
+        
+        foreach (var chunk in _chunks)
+        {
+            if (chunk.ChunkX == cx && chunk.ChunkY == cy && chunk.ChunkZ == cz)
+            {
+                chunk.Dirty = true;
+                break;
+            }
+        }
+        
+        // Also mark neighboring chunks if on boundary
+        if (wx % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx - 1, cy, cz);
+        if ((wx + 1) % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx + 1, cy, cz);
+        if (wy % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx, cy - 1, cz);
+        if ((wy + 1) % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx, cy + 1, cz);
+        if (wz % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx, cy, cz - 1);
+        if ((wz + 1) % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx, cy, cz + 1);
+    }
+
+    private void MarkChunkDirtyAtCoord(int cx, int cy, int cz)
+    {
+        foreach (var chunk in _chunks)
+        {
+            if (chunk.ChunkX == cx && chunk.ChunkY == cy && chunk.ChunkZ == cz)
+            {
+                chunk.Dirty = true;
+                break;
+            }
+        }
+    }
+
+    private void MarkChunksDirtyInRegion(int x, int y, int z, int width, int height, int depth)
+    {
+        int minCx = x / VoxelConstants.ChunkSize;
+        int maxCx = (x + width - 1) / VoxelConstants.ChunkSize;
+        int minCy = y / VoxelConstants.ChunkSize;
+        int maxCy = (y + height - 1) / VoxelConstants.ChunkSize;
+        int minCz = z / VoxelConstants.ChunkSize;
+        int maxCz = (z + depth - 1) / VoxelConstants.ChunkSize;
+        
+        for (int cx = minCx; cx <= maxCx; cx++)
+            for (int cy = minCy; cy <= maxCy; cy++)
+                for (int cz = minCz; cz <= maxCz; cz++)
+                    MarkChunkDirtyAtCoord(cx, cy, cz);
     }
 
     protected override void Draw(GameTime gameTime)
