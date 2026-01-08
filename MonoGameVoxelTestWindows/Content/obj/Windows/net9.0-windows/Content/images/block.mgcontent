@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PipelineBuildEvent xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <SourceFile>c:/Users/pusat/source/repos/MonoGameVoxelTest/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/images/block.png</SourceFile>
+  <SourceFile>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/images/block.png</SourceFile>
   <SourceTime>2026-01-02T17:06:34.3549435-05:00</SourceTime>
-  <DestFile>c:/Users/pusat/source/repos/MonoGameVoxelTest/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/bin/Windows/Content/images/block.xnb</DestFile>
-  <DestTime>2026-01-02T17:10:47.5704669-05:00</DestTime>
+  <DestFile>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/bin/Windows/Content/images/block.xnb</DestFile>
+  <DestTime>2026-01-08T13:47:00.9003332-05:00</DestTime>
   <Importer>TextureImporter</Importer>
   <ImporterTime>2025-10-20T10:25:32-04:00</ImporterTime>
   <Processor>TextureProcessor</Processor>

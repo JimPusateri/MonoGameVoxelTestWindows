@@ -4,10 +4,10 @@
   <Platform>Windows</Platform>
   <Config />
   <SourceFiles>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTest/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/DebugFont.spritefont</File>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTest/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/images/block.png</File>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTest/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/images/Blocks.png</File>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTest/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/VoxelEffect.fx</File>
+    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/DebugFont.spritefont</File>
+    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/images/block.png</File>
+    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/images/Blocks.png</File>
+    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/VoxelEffect.fx</File>
   </SourceFiles>
   <DestFiles>
     <File xsi:nil="true" />
