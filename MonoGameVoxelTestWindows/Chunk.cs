@@ -6,6 +6,9 @@ using System.Collections.Generic;
 public sealed class Chunk
 {
     public readonly Vector3 Origin;
+    public readonly int ChunkX;
+    public readonly int ChunkY;
+    public readonly int ChunkZ;
     private readonly TextureAtlas _atlas;
 
 
@@ -23,6 +26,9 @@ public sealed class Chunk
 {
     _gd = gd;
     _atlas = atlas;
+    ChunkX = cx;
+    ChunkY = cy;
+    ChunkZ = cz;
     Origin = new Vector3(cx * VoxelConstants.ChunkSize, cy * VoxelConstants.ChunkSize, cz * VoxelConstants.ChunkSize);
 }
 
