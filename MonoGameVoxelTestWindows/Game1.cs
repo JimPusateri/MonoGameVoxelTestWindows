@@ -17,12 +17,14 @@ public class Game1 : Game
     private SpriteBatch _spriteBatch;
     private SpriteFont _debugFont;
     private Dictionary<BlockType, Model> _blockModels;
+    private Dictionary<BlockType, float> _blockModelScales;
+    private Dictionary<BlockType, Vector3> _blockModelOffsets;
 
     private MouseState _previousMouseState;
     private double? _respawnTimer;
     private const float RaycastDistance = 100f;
     private const double RespawnDelay = 5.0;
-    private static readonly Vector3Int PileOrigin = new Vector3Int(29, 4, 64);
+    private static readonly Vector3Int PileOrigin = new Vector3Int(8, 4, 20);
 
     private readonly List<Chunk> _chunks = new();
 
@@ -77,14 +79,27 @@ public class Game1 : Game
         // 1. Import your .fbx/.obj box models into the Content project (Content/Models/ folder)
         // 2. Build them through the Content Pipeline
         // 3. Load them here for each BlockType you want to render
-        // Example usage:
-        //   _blockModels[BlockType.Grass] = Content.Load<Model>("Models/GrassBlock");
-        //   _blockModels[BlockType.Dirt] = Content.Load<Model>("Models/DirtBlock");
-        //   _blockModels[BlockType.Stone] = Content.Load<Model>("Models/StoneBlock");
         // The models should be 1x1x1 unit boxes with beveled edges and appropriate textures
         _blockModels = new Dictionary<BlockType, Model>();
+        _blockModels[BlockType.Grass] = Content.Load<Model>("models/shape-cube-rounded");
+        _blockModels[BlockType.Dirt] = Content.Load<Model>("models/shape-cube-rounded");
+        _blockModels[BlockType.Stone] = Content.Load<Model>("models/shape-cube-rounded");
+        _blockModels[BlockType.CrystalBlue] = Content.Load<Model>("models/shape-cube-rounded");
+        _blockModels[BlockType.CrystalRed] = Content.Load<Model>("models/shape-cube-rounded");
+        _blockModels[BlockType.CrystalGreen] = Content.Load<Model>("models/shape-cube-rounded");
 
-        int worldX = 64, worldY = 32, worldZ = 128;
+        // Calculate scale factors and offsets to fit each model into a 1x1x1 unit cube
+        _blockModelScales = new Dictionary<BlockType, float>();
+        _blockModelOffsets = new Dictionary<BlockType, Vector3>();
+        foreach (var kvp in _blockModels)
+        {
+            CalculateModelTransform(kvp.Value, out float scale, out Vector3 offset);
+            _blockModelScales[kvp.Key] = scale;
+            _blockModelOffsets[kvp.Key] = offset;
+            Console.WriteLine($"{kvp.Key}: scale={scale:F4}, offset={offset}");
+        }
+
+        int worldX = 32, worldY = 16, worldZ = 64;
         var blocks = new BlockType[worldX, worldY, worldZ];
 
         // Example: fill a 6-high dirt base
@@ -196,10 +211,43 @@ public class Game1 : Game
         Console.WriteLine($"TryDestroyBlock called - Mouse: ({mouseState.X}, {mouseState.Y})");
         Console.WriteLine($"Ray origin: {nearPoint}, direction: {rayDirection}");
         
-        // Raycast specifically for destructible blocks only
-        if (VoxelRaycast.Raycast(_destructibleLayer, nearPoint, rayDirection, 
-            RaycastDistance, out var hitBlock))
+        // Test ray against actual model bounding boxes instead of grid cells
+        Ray ray = new Ray(nearPoint, rayDirection);
+        float? closestDistance = null;
+        Vector3Int? closestBlock = null;
+        
+        foreach (var chunk in _chunks)
         {
+            foreach (var instance in chunk.BlockInstances)
+            {
+                // Only test destructible blocks
+                var blockType = _destructibleLayer.GetBlock((int)instance.Position.X, (int)instance.Position.Y, (int)instance.Position.Z);
+                if (blockType == BlockType.Air) continue;
+                
+                // Create bounding box for this model instance
+                float scale = _blockModelScales[instance.Type];
+                Vector3 offset = _blockModelOffsets[instance.Type];
+                Vector3 cellCenter = new Vector3(0.5f, 0.5f, 0.5f);
+                Vector3 worldPos = offset * scale + cellCenter + instance.Position;
+                
+                // Create a 1x1x1 box centered at worldPos
+                BoundingBox box = new BoundingBox(worldPos - new Vector3(0.5f), worldPos + new Vector3(0.5f));
+                
+                float? distance = ray.Intersects(box);
+                if (distance.HasValue && distance.Value <= RaycastDistance)
+                {
+                    if (!closestDistance.HasValue || distance.Value < closestDistance.Value)
+                    {
+                        closestDistance = distance;
+                        closestBlock = new Vector3Int((int)instance.Position.X, (int)instance.Position.Y, (int)instance.Position.Z);
+                    }
+                }
+            }
+        }
+        
+        if (closestBlock.HasValue)
+        {
+            var hitBlock = closestBlock.Value;
             Console.WriteLine($"Hit destructible block at: {hitBlock.X}, {hitBlock.Y}, {hitBlock.Z}");
             var blockType = _destructibleLayer.GetBlock(hitBlock.X, hitBlock.Y, hitBlock.Z);
             Console.WriteLine($"Block type: {blockType}");
@@ -299,7 +347,17 @@ public class Game1 : Game
                 {
                     foreach (BasicEffect effect in mesh.Effects)
                     {
-                        effect.World = Matrix.CreateTranslation(instance.Position);
+                        // Scale, apply offset to center model at origin, then position at cell center
+                        float scale = _blockModelScales[instance.Type];
+                        Vector3 offset = _blockModelOffsets[instance.Type];
+                        
+                        // Cell center relative to grid corner
+                        Vector3 cellCenter = new Vector3(0.5f, 0.5f, 0.5f);
+                        
+                        // Apply transforms: scale first, then translate (offset centers at origin, cellCenter+position moves to world)
+                        effect.World = Matrix.CreateScale(scale) * 
+                                      Matrix.CreateTranslation(offset) * 
+                                      Matrix.CreateTranslation(cellCenter + instance.Position);
                         effect.View = _camera.View;
                         effect.Projection = _camera.Projection;
                         effect.TextureEnabled = true;
@@ -335,6 +393,50 @@ public class Game1 : Game
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         _spriteBatch.DrawString(_debugFont, text, new Vector2(12, 12), Color.White);
         _spriteBatch.End();
+    }
+
+    private void CalculateModelTransform(Model model, out float scale, out Vector3 offset)
+    {
+        // Calculate the actual bounding box by examining all vertices
+        Vector3 min = new Vector3(float.MaxValue);
+        Vector3 max = new Vector3(float.MinValue);
+
+        foreach (var mesh in model.Meshes)
+        {
+            // Get vertex data from the mesh
+            foreach (var meshPart in mesh.MeshParts)
+            {
+                var vertexBuffer = meshPart.VertexBuffer;
+                var vertexData = new byte[vertexBuffer.VertexCount * vertexBuffer.VertexDeclaration.VertexStride];
+                vertexBuffer.GetData(vertexData);
+
+                // Parse positions (assuming first 3 floats are position)
+                for (int i = 0; i < vertexBuffer.VertexCount; i++)
+                {
+                    int dataOffset = i * vertexBuffer.VertexDeclaration.VertexStride;
+                    float x = BitConverter.ToSingle(vertexData, dataOffset);
+                    float y = BitConverter.ToSingle(vertexData, dataOffset + 4);
+                    float z = BitConverter.ToSingle(vertexData, dataOffset + 8);
+
+                    Vector3 pos = new Vector3(x, y, z);
+                    min = Vector3.Min(min, pos);
+                    max = Vector3.Max(max, pos);
+                }
+            }
+        }
+
+        // Calculate center and size of the bounding box
+        Vector3 center = (min + max) * 0.5f;
+        Vector3 size = max - min;
+        
+        // Find the largest dimension
+        float maxDimension = Math.Max(Math.Max(size.X, size.Y), size.Z);
+        
+        // Scale to fit in a 1x1x1 unit cube
+        scale = maxDimension > 0 ? 1.0f / maxDimension : 1.0f;
+        
+        // Offset to center the model at origin after scaling
+        offset = -center * scale;
     }
 
 }

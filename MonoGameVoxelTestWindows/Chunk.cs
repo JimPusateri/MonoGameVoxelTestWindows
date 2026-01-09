@@ -109,14 +109,4 @@ public void GenerateFromWorld(IBlockAccessor world)
 
         Dirty = false;
     }
-
-    private BlockType GetLocal(int x, int y, int z)
-    {
-        if (x < 0 || x >= VoxelConstants.ChunkSize ||
-            y < 0 || y >= VoxelConstants.ChunkSize ||
-            z < 0 || z >= VoxelConstants.ChunkSize)
-            return BlockType.Air;
-
-        return Blocks[x,y,z];
-    }
 }
