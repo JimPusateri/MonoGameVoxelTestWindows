@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PipelineBuildEvent xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <SourceFile>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/VoxelEffect.fx</SourceFile>
+  <SourceFile>C:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/VoxelEffect.fx</SourceFile>
   <SourceTime>2026-01-06T18:56:42.8538106-05:00</SourceTime>
-  <DestFile>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/bin/Windows/Content/VoxelEffect.xnb</DestFile>
-  <DestTime>2026-01-08T21:10:35.7421499-05:00</DestTime>
+  <DestFile>C:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/bin/Windows/Content/VoxelEffect.xnb</DestFile>
+  <DestTime>2026-01-09T16:40:11.3634536-05:00</DestTime>
   <Importer>EffectImporter</Importer>
   <ImporterTime>2025-10-20T10:25:32-04:00</ImporterTime>
   <Processor>EffectProcessor</Processor>

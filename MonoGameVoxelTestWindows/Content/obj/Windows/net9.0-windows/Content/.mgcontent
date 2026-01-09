@@ -4,16 +4,18 @@
   <Platform>Windows</Platform>
   <Config />
   <SourceFiles>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/DebugFont.spritefont</File>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/images/block.png</File>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/images/Blocks.png</File>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/models/crate.fbx</File>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/models/shape-cube-rounded.fbx</File>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/models/shape-cube.fbx</File>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/models/Textures/colormap.png</File>
-    <File>c:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/VoxelEffect.fx</File>
+    <File>C:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/DebugFont.spritefont</File>
+    <File>C:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/images/block.png</File>
+    <File>C:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/images/Blocks.png</File>
+    <File>C:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/models/character-keeper.fbx</File>
+    <File>C:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/models/crate.fbx</File>
+    <File>C:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/models/shape-cube-rounded.fbx</File>
+    <File>C:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/models/shape-cube.fbx</File>
+    <File>C:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/models/Textures/colormap.png</File>
+    <File>C:/Users/pusat/source/repos/MonoGameVoxelTestWindows/MonoGameVoxelTestWindows/Content/VoxelEffect.fx</File>
   </SourceFiles>
   <DestFiles>
+    <File xsi:nil="true" />
     <File xsi:nil="true" />
     <File xsi:nil="true" />
     <File xsi:nil="true" />
