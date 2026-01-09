@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework.Input;
 
 public sealed class FpsCamera
 {
-    public Vector3 Position = new(-45, 75, -45);
+    public Vector3 Position = new(-5, 24, -6);
     public float Yaw = -(float)Math.PI/6*11;
     public float Pitch = -(float)Math.PI/6;
 
