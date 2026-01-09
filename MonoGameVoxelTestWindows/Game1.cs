@@ -19,6 +19,7 @@ public class Game1 : Game
     private Dictionary<BlockType, Model> _blockModels;
     private Dictionary<BlockType, float> _blockModelScales;
     private Dictionary<BlockType, Vector3> _blockModelOffsets;
+    private Inventory _inventory;
 
     private MouseState _previousMouseState;
     private double? _respawnTimer;
@@ -49,6 +50,7 @@ public class Game1 : Game
     {
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _debugFont = Content.Load<SpriteFont>("DebugFont");
+        _inventory = new Inventory();
 
         _camera = new FpsCamera(GraphicsDevice);
         _camera.CenterMouse();
@@ -252,6 +254,9 @@ public class Game1 : Game
             var blockType = _destructibleLayer.GetBlock(hitBlock.X, hitBlock.Y, hitBlock.Z);
             Console.WriteLine($"Block type: {blockType}");
             
+            // Add to inventory
+            _inventory.AddBlock(blockType);
+            
             // Destroy block
             Console.WriteLine("Destroying block!");
             _destructibleLayer.RemoveBlock(hitBlock.X, hitBlock.Y, hitBlock.Z);
@@ -369,6 +374,7 @@ public class Game1 : Game
             }
         }
         DrawDebugHud();
+        DrawInventory();
 
         base.Draw(gameTime);
     }
@@ -392,6 +398,24 @@ public class Game1 : Game
 
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         _spriteBatch.DrawString(_debugFont, text, new Vector2(12, 12), Color.White);
+        _spriteBatch.End();
+    }
+
+    private void DrawInventory()
+    {
+        // Display inventory at top-right corner
+        int blueCount = _inventory.GetCount(BlockType.CrystalBlue);
+        int redCount = _inventory.GetCount(BlockType.CrystalRed);
+        int greenCount = _inventory.GetCount(BlockType.CrystalGreen);
+
+        string inventoryText =
+            $"Inventory:\n" +
+            $"Blue:  {blueCount}\n" +
+            $"Red:   {redCount}\n" +
+            $"Green: {greenCount}";
+
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+        _spriteBatch.DrawString(_debugFont, inventoryText, new Vector2(1400, 12), Color.White);
         _spriteBatch.End();
     }
 
