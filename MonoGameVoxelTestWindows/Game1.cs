@@ -16,6 +16,7 @@ public class Game1 : Game
     private CompositeBlockAccessor _compositeAccessor;
     private SpriteBatch _spriteBatch;
     private SpriteFont _debugFont;
+    private Dictionary<BlockType, Model> _blockModels;
 
     private MouseState _previousMouseState;
     private double? _respawnTimer;
@@ -70,6 +71,18 @@ public class Game1 : Game
 
         // important for crisp pixels
         GraphicsDevice.SamplerStates[0] = SamplerState.PointClamp;
+
+        // Load block models - Add your 3D models here
+        // To use this system:
+        // 1. Import your .fbx/.obj box models into the Content project (Content/Models/ folder)
+        // 2. Build them through the Content Pipeline
+        // 3. Load them here for each BlockType you want to render
+        // Example usage:
+        //   _blockModels[BlockType.Grass] = Content.Load<Model>("Models/GrassBlock");
+        //   _blockModels[BlockType.Dirt] = Content.Load<Model>("Models/DirtBlock");
+        //   _blockModels[BlockType.Stone] = Content.Load<Model>("Models/StoneBlock");
+        // The models should be 1x1x1 unit boxes with beveled edges and appropriate textures
+        _blockModels = new Dictionary<BlockType, Model>();
 
         int worldX = 64, worldY = 32, worldZ = 128;
         var blocks = new BlockType[worldX, worldY, worldZ];
@@ -275,23 +288,26 @@ public class Game1 : Game
         _effect.View = _camera.View;
         _effect.Projection = _camera.Projection;
 
-        foreach (var pass in _effect.CurrentTechnique.Passes)
+        // Draw models for each block instance
+        foreach (var chunk in _chunks)
         {
-            pass.Apply();
-
-            foreach (var c in _chunks)
+            foreach (var instance in chunk.BlockInstances)
             {
-                if (c.VB == null || c.IB == null || c.IndexCount == 0) continue;
+                if (!_blockModels.TryGetValue(instance.Type, out var model)) continue;
 
-                GraphicsDevice.SetVertexBuffer(c.VB);
-                GraphicsDevice.Indices = c.IB;
-
-                GraphicsDevice.DrawIndexedPrimitives(
-                    PrimitiveType.TriangleList,
-                    baseVertex: 0,
-                    startIndex: 0,
-                    primitiveCount: c.IndexCount / 3
-                );
+                foreach (var mesh in model.Meshes)
+                {
+                    foreach (BasicEffect effect in mesh.Effects)
+                    {
+                        effect.World = Matrix.CreateTranslation(instance.Position);
+                        effect.View = _camera.View;
+                        effect.Projection = _camera.Projection;
+                        effect.TextureEnabled = true;
+                        effect.LightingEnabled = true;
+                        effect.EnableDefaultLighting();
+                    }
+                    mesh.Draw();
+                }
             }
         }
         DrawDebugHud();
