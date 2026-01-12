@@ -3,6 +3,8 @@ using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 
+namespace MonoGameVoxelTestWindows;
+
 public struct BlockInstance
 {
     public Vector3 Position;
@@ -27,15 +29,14 @@ public sealed class Chunk
         new BlockType[VoxelConstants.ChunkSize, VoxelConstants.ChunkSize, VoxelConstants.ChunkSize];
 
     public List<BlockInstance> BlockInstances = new();
-    public bool Dirty = true;
 
-   public Chunk(GraphicsDevice gd, TextureAtlas atlas, int cx, int cy, int cz)
-{
-    ChunkX = cx;
-    ChunkY = cy;
-    ChunkZ = cz;
-    Origin = new Vector3(cx * VoxelConstants.ChunkSize, cy * VoxelConstants.ChunkSize, cz * VoxelConstants.ChunkSize);
-}
+    public Chunk(int cx, int cy, int cz)
+    {
+        ChunkX = cx;
+        ChunkY = cy;
+        ChunkZ = cz;
+        Origin = new Vector3(cx * VoxelConstants.ChunkSize, cy * VoxelConstants.ChunkSize, cz * VoxelConstants.ChunkSize);
+    }
 
 
     public void GenerateFlat()
@@ -48,7 +49,6 @@ public sealed class Chunk
             else if (y < 4) Blocks[x,y,z] = BlockType.Dirt;
             else Blocks[x,y,z] = BlockType.Air;
         }
-        Dirty = true;
     }
     public void GenerateFlat2()
     {
@@ -62,9 +62,8 @@ public sealed class Chunk
             else if (worldY < 4) Blocks[x,y,z] = BlockType.Dirt;
             else Blocks[x,y,z] = BlockType.Air;
         }
-
-        Dirty = true;
     }
+    
 public void GenerateFromWorld(IBlockAccessor world)
 {
     for (int x = 0; x < VoxelConstants.ChunkSize; x++)
@@ -77,10 +76,7 @@ public void GenerateFromWorld(IBlockAccessor world)
 
         Blocks[x,y,z] = world.GetBlock(wx, wy, wz);
     }
-
-    Dirty = true;
 }
-
 
     private BlockType GetLocal(int x, int y, int z)
     {
@@ -106,7 +102,5 @@ public void GenerateFromWorld(IBlockAccessor world)
             Vector3 position = Origin + new Vector3(x, y, z);
             BlockInstances.Add(new BlockInstance(position, t));
         }
-
-        Dirty = false;
     }
 }

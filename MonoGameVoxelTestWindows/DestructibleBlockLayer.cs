@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 
+namespace MonoGameVoxelTestWindows;
+
 public sealed class DestructibleBlockLayer : IBlockAccessor
 {
     private readonly Dictionary<Vector3Int, BlockType> _blocks = new();
-    private static readonly Random _random = new();
+    private readonly IRandom _random;
     
     // Probability distribution for block types: 80% Blue, 15% Red, 5% Green
     private static readonly (BlockType type, float probability)[] _blockDistribution = 
@@ -16,6 +18,11 @@ public sealed class DestructibleBlockLayer : IBlockAccessor
     };
 
     public int Count => _blocks.Count;
+
+    public DestructibleBlockLayer(IRandom random)
+    {
+        _random = random;
+    }
 
     public BlockType GetBlock(int wx, int wy, int wz)
     {
@@ -51,19 +58,13 @@ public sealed class DestructibleBlockLayer : IBlockAccessor
         }
     }
 
-    private static BlockType GetRandomBlockType()
+    private BlockType GetRandomBlockType()
     {
-        float roll = (float)_random.NextDouble();
-        float cumulative = 0f;
+        int roll = _random.Next(100); // 0-99
 
-        foreach (var (type, probability) in _blockDistribution)
-        {
-            cumulative += probability;
-            if (roll < cumulative)
-                return type;
-        }
-
-        return BlockType.CrystalBlue; // Fallback
+        if (roll < 80) return BlockType.CrystalBlue;     // 80% chance
+        if (roll < 95) return BlockType.CrystalRed;      // 15% chance
+        return BlockType.CrystalGreen;                   // 5% chance
     }
 }
 

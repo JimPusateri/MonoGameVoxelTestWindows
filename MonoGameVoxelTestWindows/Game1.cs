@@ -21,13 +21,16 @@ public class Game1 : Game
     private Dictionary<BlockType, Vector3> _blockModelOffsets;
     private Inventory _inventory;
 
+    private ServiceContainer _services;
+    private ChunkManager _chunkManager;
+    private BlockDestructionSystem _destructionSystem;
+    private ICameraInput _cameraInput;
+
     private MouseState _previousMouseState;
     private double? _respawnTimer;
     private const float RaycastDistance = 100f;
     private const double RespawnDelay = 5.0;
     private static readonly Vector3Int PileOrigin = new Vector3Int(8, 4, 20);
-
-    private readonly List<Chunk> _chunks = new();
 
     public Game1()
     {
@@ -52,8 +55,13 @@ public class Game1 : Game
         _debugFont = Content.Load<SpriteFont>("DebugFont");
         _inventory = new Inventory();
 
+        // Initialize service container
+        _services = new ServiceContainer();
+        ConfigureServices(_services);
+
         _camera = new FpsCamera(GraphicsDevice);
         _camera.CenterMouse();
+        _cameraInput = _services.Resolve<ICameraInput>();
 
         // Create a color-based texture atlas procedurally (3x2 tiles, 16px each)
         var atlas = TextureAtlas.CreateColorAtlas(
@@ -125,8 +133,11 @@ public class Game1 : Game
         _world = new ArrayWorld(blocks);
         
         // Initialize destructible layer and composite accessor
-        _destructibleLayer = new DestructibleBlockLayer();
+        _destructibleLayer = new DestructibleBlockLayer(_services.Resolve<IRandom>());
         _compositeAccessor = new CompositeBlockAccessor(_destructibleLayer, _world);
+        
+        // Initialize ChunkManager
+        _chunkManager = new ChunkManager(_compositeAccessor);
         
         // Spawn initial pile
         _destructibleLayer.AddPile(PileOrigin);
@@ -139,11 +150,19 @@ public class Game1 : Game
             for (int cy = 0; cy < chunksY; cy++)
                 for (int cx = 0; cx < chunksX; cx++)
                 {
-                    var chunk = new Chunk(GraphicsDevice, atlas, cx, cy, cz);
+                    var chunk = new Chunk(cx, cy, cz);
                     chunk.GenerateFromWorld(_compositeAccessor);
                     chunk.RebuildMesh(_compositeAccessor);
-                    _chunks.Add(chunk);
+                    _chunkManager.AddChunk(chunk);
                 }
+        
+        // Initialize BlockDestructionSystem
+        _destructionSystem = new BlockDestructionSystem(
+            _chunkManager, 
+            _destructibleLayer, 
+            _inventory,
+            _blockModelScales,
+            _blockModelOffsets);
     }
 
     protected override void Update(GameTime gameTime)
@@ -151,16 +170,41 @@ public class Game1 : Game
         if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
             Exit();
 
-        bool windowActive = IsActive;
-        _camera.Update(gameTime, windowActive);
+        _camera.Update(gameTime, _cameraInput);
 
         // Handle block destruction on left mouse click
         var currentMouseState = Mouse.GetState();
-        if (windowActive && currentMouseState.LeftButton == ButtonState.Pressed && 
+        if (IsActive && currentMouseState.LeftButton == ButtonState.Pressed && 
             _previousMouseState.LeftButton == ButtonState.Released)
         {
             Console.WriteLine($"Mouse clicked! Camera pos: {_camera.Position}, Forward: {_camera.Forward()}");
-            TryDestroyBlock(gameTime);
+            
+            // Create ray from mouse position
+            Vector3 nearPoint = GraphicsDevice.Viewport.Unproject(
+                new Vector3(currentMouseState.X, currentMouseState.Y, 0),
+                _camera.Projection,
+                _camera.View,
+                Matrix.Identity);
+            Vector3 farPoint = GraphicsDevice.Viewport.Unproject(
+                new Vector3(currentMouseState.X, currentMouseState.Y, 1),
+                _camera.Projection,
+                _camera.View,
+                Matrix.Identity);
+            Vector3 rayDirection = Vector3.Normalize(farPoint - nearPoint);
+            Ray ray = new Ray(nearPoint, rayDirection);
+            
+            var result = _destructionSystem.TryDestroyBlock(ray, RaycastDistance);
+            if (result.Hit)
+            {
+                Console.WriteLine($"Hit block at: {result.Position.Value.X}, {result.Position.Value.Y}, {result.Position.Value.Z}");
+                
+                // If all blocks destroyed, start respawn timer
+                if (_destructibleLayer.Count == 0 && !_respawnTimer.HasValue)
+                {
+                    Console.WriteLine("All blocks destroyed, starting respawn timer");
+                    _respawnTimer = gameTime.TotalGameTime.TotalSeconds + RespawnDelay;
+                }
+            }
         }
         _previousMouseState = currentMouseState;
 
@@ -173,159 +217,33 @@ public class Game1 : Game
                 _destructibleLayer.AddPile(PileOrigin);
                 _respawnTimer = null;
                 
-                // Mark affected chunks dirty
-                MarkChunksDirtyInRegion(PileOrigin.X, PileOrigin.Y, PileOrigin.Z, 6, 4, 10);
+                // Mark affected chunks dirty in the pile region
+                for (int x = PileOrigin.X; x < PileOrigin.X + 6; x++)
+                    for (int y = PileOrigin.Y; y < PileOrigin.Y + 4; y++)
+                        for (int z = PileOrigin.Z; z < PileOrigin.Z + 10; z++)
+                        {
+                            var chunk = _chunkManager.GetChunkAt(x, y, z);
+                            if (chunk != null) _chunkManager.MarkChunkDirty(chunk);
+                        }
             }
         }
 
         // Rebuild any dirty chunks
-        for (int i = 0; i < _chunks.Count; i++)
+        foreach (var chunk in _chunkManager.GetDirtyChunks())
         {
-            if (_chunks[i].Dirty)
-            {
-                _chunks[i].GenerateFromWorld(_compositeAccessor);
-                _chunks[i].RebuildMesh(_compositeAccessor);
-            }
+            chunk.GenerateFromWorld(_compositeAccessor);
+            chunk.RebuildMesh(_compositeAccessor);
+            _chunkManager.ClearDirtyFlag(chunk);
         }
 
         base.Update(gameTime);
     }
 
-    private void TryDestroyBlock(GameTime gameTime)
+    private void ConfigureServices(ServiceContainer services)
     {
-        // Get mouse position and convert to world ray
-        var mouseState = Mouse.GetState();
-        
-        // Unproject near and far points to get the ray in world space
-        Vector3 nearPoint = GraphicsDevice.Viewport.Unproject(
-            new Vector3(mouseState.X, mouseState.Y, 0),
-            _camera.Projection,
-            _camera.View,
-            Matrix.Identity);
-        Vector3 farPoint = GraphicsDevice.Viewport.Unproject(
-            new Vector3(mouseState.X, mouseState.Y, 1),
-            _camera.Projection,
-            _camera.View,
-            Matrix.Identity);
-        
-        Vector3 rayDirection = Vector3.Normalize(farPoint - nearPoint);
-        
-        Console.WriteLine($"TryDestroyBlock called - Mouse: ({mouseState.X}, {mouseState.Y})");
-        Console.WriteLine($"Ray origin: {nearPoint}, direction: {rayDirection}");
-        
-        // Test ray against actual model bounding boxes instead of grid cells
-        Ray ray = new Ray(nearPoint, rayDirection);
-        float? closestDistance = null;
-        Vector3Int? closestBlock = null;
-        
-        foreach (var chunk in _chunks)
-        {
-            foreach (var instance in chunk.BlockInstances)
-            {
-                // Only test destructible blocks
-                var blockType = _destructibleLayer.GetBlock((int)instance.Position.X, (int)instance.Position.Y, (int)instance.Position.Z);
-                if (blockType == BlockType.Air) continue;
-                
-                // Create bounding box for this model instance
-                float scale = _blockModelScales[instance.Type];
-                Vector3 offset = _blockModelOffsets[instance.Type];
-                Vector3 cellCenter = new Vector3(0.5f, 0.5f, 0.5f);
-                Vector3 worldPos = offset * scale + cellCenter + instance.Position;
-                
-                // Create a 1x1x1 box centered at worldPos
-                BoundingBox box = new BoundingBox(worldPos - new Vector3(0.5f), worldPos + new Vector3(0.5f));
-                
-                float? distance = ray.Intersects(box);
-                if (distance.HasValue && distance.Value <= RaycastDistance)
-                {
-                    if (!closestDistance.HasValue || distance.Value < closestDistance.Value)
-                    {
-                        closestDistance = distance;
-                        closestBlock = new Vector3Int((int)instance.Position.X, (int)instance.Position.Y, (int)instance.Position.Z);
-                    }
-                }
-            }
-        }
-        
-        if (closestBlock.HasValue)
-        {
-            var hitBlock = closestBlock.Value;
-            Console.WriteLine($"Hit destructible block at: {hitBlock.X}, {hitBlock.Y}, {hitBlock.Z}");
-            var blockType = _destructibleLayer.GetBlock(hitBlock.X, hitBlock.Y, hitBlock.Z);
-            Console.WriteLine($"Block type: {blockType}");
-            
-            // Add to inventory
-            _inventory.AddBlock(blockType);
-            
-            // Destroy block
-            Console.WriteLine("Destroying block!");
-            _destructibleLayer.RemoveBlock(hitBlock.X, hitBlock.Y, hitBlock.Z);
-            
-            // Mark affected chunks dirty
-            MarkChunkDirtyAt(hitBlock.X, hitBlock.Y, hitBlock.Z);
-            
-            // If all blocks destroyed, start respawn timer
-            if (_destructibleLayer.Count == 0 && !_respawnTimer.HasValue)
-            {
-                Console.WriteLine("All blocks destroyed, starting respawn timer");
-                _respawnTimer = gameTime.TotalGameTime.TotalSeconds + RespawnDelay;
-            }
-        }
-        else
-        {
-            Console.WriteLine("Raycast missed - no destructible block hit");
-        }
-    }
-
-    private void MarkChunkDirtyAt(int wx, int wy, int wz)
-    {
-        int cx = wx / VoxelConstants.ChunkSize;
-        int cy = wy / VoxelConstants.ChunkSize;
-        int cz = wz / VoxelConstants.ChunkSize;
-        
-        foreach (var chunk in _chunks)
-        {
-            if (chunk.ChunkX == cx && chunk.ChunkY == cy && chunk.ChunkZ == cz)
-            {
-                chunk.Dirty = true;
-                break;
-            }
-        }
-        
-        // Also mark neighboring chunks if on boundary
-        if (wx % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx - 1, cy, cz);
-        if ((wx + 1) % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx + 1, cy, cz);
-        if (wy % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx, cy - 1, cz);
-        if ((wy + 1) % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx, cy + 1, cz);
-        if (wz % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx, cy, cz - 1);
-        if ((wz + 1) % VoxelConstants.ChunkSize == 0) MarkChunkDirtyAtCoord(cx, cy, cz + 1);
-    }
-
-    private void MarkChunkDirtyAtCoord(int cx, int cy, int cz)
-    {
-        foreach (var chunk in _chunks)
-        {
-            if (chunk.ChunkX == cx && chunk.ChunkY == cy && chunk.ChunkZ == cz)
-            {
-                chunk.Dirty = true;
-                break;
-            }
-        }
-    }
-
-    private void MarkChunksDirtyInRegion(int x, int y, int z, int width, int height, int depth)
-    {
-        int minCx = x / VoxelConstants.ChunkSize;
-        int maxCx = (x + width - 1) / VoxelConstants.ChunkSize;
-        int minCy = y / VoxelConstants.ChunkSize;
-        int maxCy = (y + height - 1) / VoxelConstants.ChunkSize;
-        int minCz = z / VoxelConstants.ChunkSize;
-        int maxCz = (z + depth - 1) / VoxelConstants.ChunkSize;
-        
-        for (int cx = minCx; cx <= maxCx; cx++)
-            for (int cy = minCy; cy <= maxCy; cy++)
-                for (int cz = minCz; cz <= maxCz; cz++)
-                    MarkChunkDirtyAtCoord(cx, cy, cz);
+        services.RegisterSingleton<IRandom>(new SystemRandom());
+        services.RegisterSingleton<IWorldGenerator>(new WorldGenerator());
+        services.RegisterSingleton<ICameraInput>(new MonoGameCameraInput(this));
     }
 
     protected override void Draw(GameTime gameTime)
@@ -342,7 +260,7 @@ public class Game1 : Game
         _effect.Projection = _camera.Projection;
 
         // Draw models for each block instance
-        foreach (var chunk in _chunks)
+        foreach (var chunk in _chunkManager.GetAllChunks())
         {
             foreach (var instance in chunk.BlockInstances)
             {

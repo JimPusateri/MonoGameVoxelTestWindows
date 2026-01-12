@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoGameVoxelTestWindows", "MonoGameVoxelTestWindows\MonoGameVoxelTestWindows.csproj", "{25611399-EEE8-4CB8-84C6-A59A5FB849F0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoGameVoxelTestWindows.Tests", "MonoGameVoxelTestWindows.Tests\MonoGameVoxelTestWindows.Tests.csproj", "{DB9BD704-BB47-46F9-982C-7072AE82CCBA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,18 @@ Global
 		{25611399-EEE8-4CB8-84C6-A59A5FB849F0}.Release|x64.Build.0 = Release|Any CPU
 		{25611399-EEE8-4CB8-84C6-A59A5FB849F0}.Release|x86.ActiveCfg = Release|Any CPU
 		{25611399-EEE8-4CB8-84C6-A59A5FB849F0}.Release|x86.Build.0 = Release|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Debug|x64.Build.0 = Debug|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Debug|x86.Build.0 = Debug|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Release|x64.ActiveCfg = Release|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Release|x64.Build.0 = Release|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Release|x86.ActiveCfg = Release|Any CPU
+		{DB9BD704-BB47-46F9-982C-7072AE82CCBA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
