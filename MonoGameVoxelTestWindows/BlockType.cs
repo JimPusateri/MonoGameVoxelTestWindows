@@ -1,3 +1,5 @@
+namespace MonoGameVoxelTestWindows;
+
 public enum BlockType : byte 
 { 
     Air = 0, 
