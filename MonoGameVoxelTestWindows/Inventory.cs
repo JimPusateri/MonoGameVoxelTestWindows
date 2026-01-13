@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 
+namespace MonoGameVoxelTestWindows;
+
 public class Inventory
 {
     private readonly Dictionary<BlockType, int> _blockCounts = new();
