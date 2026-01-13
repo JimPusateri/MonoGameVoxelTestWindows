@@ -23,6 +23,11 @@ public sealed class DestructibleBlockLayer : IBlockAccessor
         return _blocks.TryGetValue(key, out var type) ? type : BlockType.Air;
     }
 
+    public IEnumerable<KeyValuePair<Vector3Int, BlockType>> GetAllBlocks()
+    {
+        return _blocks;
+    }
+
     public void RemoveBlock(int wx, int wy, int wz)
     {
         var key = new Vector3Int(wx, wy, wz);

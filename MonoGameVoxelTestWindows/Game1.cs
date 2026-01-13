@@ -20,12 +20,13 @@ public class Game1 : Game
     private Dictionary<BlockType, float> _blockModelScales;
     private Dictionary<BlockType, Vector3> _blockModelOffsets;
     private Inventory _inventory;
+    private List<NpcEntity> _npcs;
 
     private MouseState _previousMouseState;
     private double? _respawnTimer;
     private const float RaycastDistance = 100f;
     private const double RespawnDelay = 5.0;
-    private static readonly Vector3Int PileOrigin = new Vector3Int(8, 4, 20);
+    private static readonly Vector3Int PileOrigin = new Vector3Int(8, 4, 8);
 
     private readonly List<Chunk> _chunks = new();
 
@@ -101,7 +102,7 @@ public class Game1 : Game
             Console.WriteLine($"{kvp.Key}: scale={scale:F4}, offset={offset}");
         }
 
-        int worldX = 32, worldY = 16, worldZ = 64;
+        int worldX = 32, worldY = 16, worldZ = 32;
         var blocks = new BlockType[worldX, worldY, worldZ];
 
         // Example: fill a 6-high dirt base
@@ -130,6 +131,19 @@ public class Game1 : Game
         
         // Spawn initial pile
         _destructibleLayer.AddPile(PileOrigin);
+        
+        // Load and initialize NPCs
+        _npcs = new List<NpcEntity>();
+        Model keeperModel = Content.Load<Model>("models/character-keeper");
+        CalculateModelTransform(keeperModel, out float keeperScale, out Vector3 keeperOffset);
+        
+        Vector3 keeperPosition = new Vector3(16f, 4.5f, 1f);
+        Vector3 pilePosition = new Vector3(PileOrigin.X, PileOrigin.Y, PileOrigin.Z);
+        Vector3 directionToPile = pilePosition - keeperPosition;
+        float keeperRotation = (float)Math.Atan2(directionToPile.X, directionToPile.Z);
+        
+        var keeper = new NpcEntity(keeperModel, keeperPosition, keeperRotation, keeperScale, keeperOffset);
+        _npcs.Add(keeper);
         
         int chunksX = (worldX + VoxelConstants.ChunkSize - 1) / VoxelConstants.ChunkSize;
         int chunksY = (worldY + VoxelConstants.ChunkSize - 1) / VoxelConstants.ChunkSize;
@@ -163,6 +177,9 @@ public class Game1 : Game
             TryDestroyBlock(gameTime);
         }
         _previousMouseState = currentMouseState;
+
+        // Update NPCs
+        UpdateNpcs(gameTime);
 
         // Handle respawn timer
         if (_respawnTimer.HasValue)
@@ -277,6 +294,120 @@ public class Game1 : Game
         }
     }
 
+    private void UpdateNpcs(GameTime gameTime)
+    {
+        float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
+
+        foreach (var npc in _npcs)
+        {
+            // Check if NPC should return to start (collected 5 blocks)
+            if (!npc.ReturningToStart && npc.CollectedBlocks.Count >= NpcEntity.MaxCollectedBlocks)
+            {
+                npc.ReturningToStart = true;
+                npc.TargetBlock = null;
+            }
+
+            if (npc.ReturningToStart)
+            {
+                // Move back to starting position (X,Z plane only)
+                Vector3 targetPos = new Vector3(npc.StartingPosition.X, npc.Position.Y, npc.StartingPosition.Z);
+                Vector3 direction = targetPos - npc.Position;
+                direction.Y = 0; // Constrain to X,Z plane
+                float distanceXZ = new Vector2(direction.X, direction.Z).Length();
+
+                if (distanceXZ <= 0.5f)
+                {
+                    // Arrived at start - transfer collected blocks to inventory
+                    foreach (var blockType in npc.CollectedBlocks)
+                    {
+                        _inventory.AddBlock(blockType);
+                    }
+                    npc.CollectedBlocks.Clear();
+                    npc.ReturningToStart = false;
+                }
+                else
+                {
+                    // Move towards start
+                    direction.Normalize();
+                    npc.Position += direction * npc.MoveSpeed * deltaTime;
+                    npc.Rotation = (float)Math.Atan2(direction.X, direction.Z);
+                }
+            }
+            else
+            {
+                // Find nearest destructible block if we don't have a target
+                if (!npc.TargetBlock.HasValue || _destructibleLayer.GetBlock(npc.TargetBlock.Value.X, npc.TargetBlock.Value.Y, npc.TargetBlock.Value.Z) == BlockType.Air)
+                {
+                    npc.TargetBlock = FindNearestDestructibleBlock(npc.Position);
+                }
+
+                // If we have a target, move towards it
+                if (npc.TargetBlock.HasValue)
+                {
+                    Vector3 targetCenter = new Vector3(
+                        npc.TargetBlock.Value.X + 0.5f,
+                        npc.TargetBlock.Value.Y + 0.5f,
+                        npc.TargetBlock.Value.Z + 0.5f
+                    );
+
+                    // Calculate distance in X,Z plane only
+                    Vector3 direction = targetCenter - npc.Position;
+                    direction.Y = 0; // Ignore height difference
+                    float distanceXZ = direction.Length();
+
+                    // Check if close enough to destroy (X,Z distance only)
+                    if (distanceXZ <= npc.DestroyRange)
+                    {
+                        // Destroy the block and add to NPC's collected blocks
+                        var blockType = _destructibleLayer.GetBlock(npc.TargetBlock.Value.X, npc.TargetBlock.Value.Y, npc.TargetBlock.Value.Z);
+                        npc.CollectedBlocks.Add(blockType);
+                        _destructibleLayer.RemoveBlock(npc.TargetBlock.Value.X, npc.TargetBlock.Value.Y, npc.TargetBlock.Value.Z);
+                        MarkChunkDirtyAt(npc.TargetBlock.Value.X, npc.TargetBlock.Value.Y, npc.TargetBlock.Value.Z);
+
+                        // Clear target to find next block
+                        npc.TargetBlock = null;
+
+                        // Check if all blocks destroyed
+                        if (_destructibleLayer.Count == 0 && !_respawnTimer.HasValue)
+                        {
+                            _respawnTimer = gameTime.TotalGameTime.TotalSeconds + RespawnDelay;
+                        }
+                    }
+                    else
+                    {
+                        // Move towards target (X,Z plane only)
+                        direction.Normalize();
+                        npc.Position += direction * npc.MoveSpeed * deltaTime;
+
+                        // Update rotation to face target (XZ plane only)
+                        npc.Rotation = (float)Math.Atan2(direction.X, direction.Z);
+                    }
+                }
+            }
+        }
+    }
+
+    private Vector3Int? FindNearestDestructibleBlock(Vector3 fromPosition)
+    {
+        Vector3Int? nearest = null;
+        float nearestDistance = float.MaxValue;
+
+        foreach (var kvp in _destructibleLayer.GetAllBlocks())
+        {
+            Vector3 blockCenter = new Vector3(kvp.Key.X + 0.5f, kvp.Key.Y + 0.5f, kvp.Key.Z + 0.5f);
+            // Only consider X,Z distance (ignore height)
+            float distanceXZ = new Vector2(blockCenter.X - fromPosition.X, blockCenter.Z - fromPosition.Z).Length();
+
+            if (distanceXZ < nearestDistance)
+            {
+                nearestDistance = distanceXZ;
+                nearest = kvp.Key;
+            }
+        }
+
+        return nearest;
+    }
+
     private void MarkChunkDirtyAt(int wx, int wy, int wz)
     {
         int cx = wx / VoxelConstants.ChunkSize;
@@ -373,6 +504,29 @@ public class Game1 : Game
                 }
             }
         }
+        
+        // Draw NPCs
+        foreach (var npc in _npcs)
+        {
+            foreach (var mesh in npc.Model.Meshes)
+            {
+                foreach (BasicEffect effect in mesh.Effects)
+                {
+                    // Apply transforms: Scale → Offset → Rotation → Position
+                    effect.World = Matrix.CreateScale(npc.Scale) * 
+                                  Matrix.CreateTranslation(npc.ModelOffset) *
+                                  Matrix.CreateRotationY(npc.Rotation) *
+                                  Matrix.CreateTranslation(npc.Position);
+                    effect.View = _camera.View;
+                    effect.Projection = _camera.Projection;
+                    effect.TextureEnabled = true;
+                    effect.LightingEnabled = true;
+                    effect.EnableDefaultLighting();
+                }
+                mesh.Draw();
+            }
+        }
+        
         DrawDebugHud();
         DrawInventory();
 
