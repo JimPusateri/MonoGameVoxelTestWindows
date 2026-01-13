@@ -1,5 +1,3 @@
-namespace MonoGameVoxelTestWindows;
-
 public sealed class CompositeBlockAccessor : IBlockAccessor
 {
     private readonly DestructibleBlockLayer _destructibleLayer;

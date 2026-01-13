@@ -1,7 +1,5 @@
 using Microsoft.Xna.Framework;
 
-namespace MonoGameVoxelTestWindows;
-
 public enum BlockFace : byte { PosX, NegX, PosY, NegY, PosZ, NegZ }
 
 public static class BlockTiles

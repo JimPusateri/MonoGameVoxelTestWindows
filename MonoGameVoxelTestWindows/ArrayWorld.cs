@@ -1,5 +1,3 @@
-namespace MonoGameVoxelTestWindows;
-
 public sealed class ArrayWorld : IBlockAccessor
 {
     private readonly BlockType[,,] _blocks;

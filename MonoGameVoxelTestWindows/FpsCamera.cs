@@ -3,8 +3,6 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
-namespace MonoGameVoxelTestWindows;
-
 public sealed class FpsCamera
 {
     public Vector3 Position = new(-5, 24, -6);
@@ -34,21 +32,42 @@ public sealed class FpsCamera
         Mouse.SetPosition(vp.X + vp.Width / 2, vp.Y + vp.Height / 2);
     }
 
-    public void Update(GameTime gameTime, ICameraInput input)
+    public void Update(GameTime gameTime, bool windowActive)
     {
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        var kb = Keyboard.GetState();
 
-        float speed = 20f;
+        float speed = 20f; // kb.IsKeyDown(Keys.LeftShift) ? 18f : 8f;
+
+        // Mouse look using recentering
+        // if (windowActive)
+        // {
+        //     var vp = _gd.Viewport;
+        //     int cx = vp.X + vp.Width / 2;
+        //     int cy = vp.Y + vp.Height / 2;
+
+        //     var ms = Mouse.GetState();
+        //     int dx = ms.X - cx;
+        //     int dy = ms.Y - cy;
+
+        //     const float sensitivity = 0.0025f;
+        //     Yaw   -= dx * sensitivity;
+        //     Pitch -= dy * sensitivity;
+
+        //     Pitch = MathHelper.Clamp(Pitch, -MathHelper.PiOver2 + 0.01f, MathHelper.PiOver2 - 0.01f);
+
+        //     Mouse.SetPosition(cx, cy);
+        // }
 
         Vector3 forward = Forward();
         Vector3 right = Vector3.Normalize(Vector3.Cross(forward, Vector3.Up));
 
-        if (input.IsKeyDown(Keys.W)) Position += forward * speed * dt;
-        if (input.IsKeyDown(Keys.S)) Position -= forward * speed * dt;
-        if (input.IsKeyDown(Keys.A)) Position -= right   * speed * dt;
-        if (input.IsKeyDown(Keys.D)) Position += right   * speed * dt;
-        if (input.IsKeyDown(Keys.Space)) Position += Vector3.Up * speed * dt;
-        if (input.IsKeyDown(Keys.LeftControl)) Position -= Vector3.Up * speed * dt;
+        if (kb.IsKeyDown(Keys.W)) Position += forward * speed * dt;
+        if (kb.IsKeyDown(Keys.S)) Position -= forward * speed * dt;
+        if (kb.IsKeyDown(Keys.A)) Position -= right   * speed * dt;
+        if (kb.IsKeyDown(Keys.D)) Position += right   * speed * dt;
+        if (kb.IsKeyDown(Keys.Space)) Position += Vector3.Up * speed * dt;
+        if (kb.IsKeyDown(Keys.LeftControl)) Position -= Vector3.Up * speed * dt;
 
         RecalcView();
     }

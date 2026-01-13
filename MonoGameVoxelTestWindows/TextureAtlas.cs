@@ -2,8 +2,6 @@ using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace MonoGameVoxelTestWindows;
-
 public sealed class TextureAtlas
 {
     public Texture2D Texture { get; }

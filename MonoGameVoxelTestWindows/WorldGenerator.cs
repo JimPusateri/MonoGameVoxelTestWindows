@@ -1,6 +1,4 @@
-namespace MonoGameVoxelTestWindows;
-
-public sealed class WorldGenerator : IWorldGenerator
+public sealed class WorldGenerator : IBlockAccessor
 {
     public BlockType GetBlock(int wx, int wy, int wz)
     {

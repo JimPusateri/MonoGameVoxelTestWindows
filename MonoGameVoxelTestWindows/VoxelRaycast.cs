@@ -1,8 +1,6 @@
 using System;
 using Microsoft.Xna.Framework;
 
-namespace MonoGameVoxelTestWindows;
-
 public static class VoxelRaycast
 {
     /// <summary>
