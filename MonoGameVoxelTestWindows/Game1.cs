@@ -32,6 +32,12 @@ public class Game1 : Game
     private const float RaycastDistance = 100f;
     private const double RespawnDelay = 5.0;
     private static readonly Vector3Int PileOrigin = new Vector3Int(8, 4, 8);
+    
+    // UI feedback system
+    private string _feedbackMessage = "";
+    private float _feedbackTimer = 0f;
+    private Color _feedbackColor = Color.White;
+    private const float FeedbackDuration = 2.0f;
 
     public Game1()
     {
@@ -188,37 +194,127 @@ public class Game1 : Game
 
         // Handle block destruction on left mouse click
         var currentMouseState = Mouse.GetState();
+        
+        // Handle UI button clicks first (check if clicking on UI)
         if (IsActive && currentMouseState.LeftButton == ButtonState.Pressed && 
             _previousMouseState.LeftButton == ButtonState.Released)
         {
-            Console.WriteLine($"Mouse clicked! Camera pos: {_camera.Position}, Forward: {_camera.Forward()}");
+            Point mousePos = new Point(currentMouseState.X, currentMouseState.Y);
             
-            // Create ray from mouse position
-            Vector3 nearPoint = GraphicsDevice.Viewport.Unproject(
-                new Vector3(currentMouseState.X, currentMouseState.Y, 0),
-                _camera.Projection,
-                _camera.View,
-                Matrix.Identity);
-            Vector3 farPoint = GraphicsDevice.Viewport.Unproject(
-                new Vector3(currentMouseState.X, currentMouseState.Y, 1),
-                _camera.Projection,
-                _camera.View,
-                Matrix.Identity);
-            Vector3 rayDirection = Vector3.Normalize(farPoint - nearPoint);
-            Ray ray = new Ray(nearPoint, rayDirection);
+            // Define button rectangles (2x2 grid at bottom-left, shifted right)
+            Rectangle upgradeStrengthButton = new Rectangle(310, 720, 250, 30);
+            Rectangle upgradeStorageButton = new Rectangle(570, 720, 250, 30);
+            Rectangle convertBlueToRedButton = new Rectangle(310, 760, 250, 30);
+            Rectangle convertRedToGreenButton = new Rectangle(570, 760, 250, 30);
             
-            var result = _destructionSystem.TryDestroyBlock(ray, RaycastDistance);
-            if (result.Hit)
+            bool clickedUI = false;
+            
+            if (upgradeStrengthButton.Contains(mousePos))
             {
-                Console.WriteLine($"Hit block at: {result.Position.Value.X}, {result.Position.Value.Y}, {result.Position.Value.Z}");
-                
-                // If all blocks destroyed, start respawn timer
-                if (_destructibleLayer.Count == 0 && !_respawnTimer.HasValue)
+                clickedUI = true;
+                if (_npcs.Count > 0 && _npcs[0].UpgradeStrength(_inventory))
                 {
-                    Console.WriteLine("All blocks destroyed, starting respawn timer");
-                    _respawnTimer = gameTime.TotalGameTime.TotalSeconds + RespawnDelay;
+                    _feedbackMessage = "Strength upgraded!";
+                    _feedbackColor = Color.LimeGreen;
+                    _feedbackTimer = FeedbackDuration;
+                }
+                else
+                {
+                    _feedbackMessage = "Insufficient materials!";
+                    _feedbackColor = Color.Red;
+                    _feedbackTimer = FeedbackDuration;
                 }
             }
+            else if (upgradeStorageButton.Contains(mousePos))
+            {
+                clickedUI = true;
+                if (_npcs.Count > 0 && _npcs[0].UpgradeStorage(_inventory))
+                {
+                    _feedbackMessage = "Storage upgraded!";
+                    _feedbackColor = Color.LimeGreen;
+                    _feedbackTimer = FeedbackDuration;
+                }
+                else
+                {
+                    _feedbackMessage = "Insufficient materials!";
+                    _feedbackColor = Color.Red;
+                    _feedbackTimer = FeedbackDuration;
+                }
+            }
+            else if (convertBlueToRedButton.Contains(mousePos))
+            {
+                clickedUI = true;
+                int converted = _inventory.ConvertBlocks(BlockType.CrystalBlue, BlockType.CrystalRed);
+                if (converted > 0)
+                {
+                    _feedbackMessage = $"Converted {converted * 100} Blue to {converted} Red!";
+                    _feedbackColor = Color.LimeGreen;
+                    _feedbackTimer = FeedbackDuration;
+                }
+                else
+                {
+                    _feedbackMessage = "Need at least 100 Blue crystals!";
+                    _feedbackColor = Color.Red;
+                    _feedbackTimer = FeedbackDuration;
+                }
+            }
+            else if (convertRedToGreenButton.Contains(mousePos))
+            {
+                clickedUI = true;
+                int converted = _inventory.ConvertBlocks(BlockType.CrystalRed, BlockType.CrystalGreen);
+                if (converted > 0)
+                {
+                    _feedbackMessage = $"Converted {converted * 100} Red to {converted} Green!";
+                    _feedbackColor = Color.LimeGreen;
+                    _feedbackTimer = FeedbackDuration;
+                }
+                else
+                {
+                    _feedbackMessage = "Need at least 100 Red crystals!";
+                    _feedbackColor = Color.Red;
+                    _feedbackTimer = FeedbackDuration;
+                }
+            }
+            
+            // Only process block destruction if didn't click UI
+            if (!clickedUI)
+            {
+                Console.WriteLine($"Mouse clicked! Camera pos: {_camera.Position}, Forward: {_camera.Forward()}");
+                
+                // Create ray from mouse position
+                Vector3 nearPoint = GraphicsDevice.Viewport.Unproject(
+                    new Vector3(currentMouseState.X, currentMouseState.Y, 0),
+                    _camera.Projection,
+                    _camera.View,
+                    Matrix.Identity);
+                Vector3 farPoint = GraphicsDevice.Viewport.Unproject(
+                    new Vector3(currentMouseState.X, currentMouseState.Y, 1),
+                    _camera.Projection,
+                    _camera.View,
+                    Matrix.Identity);
+                Vector3 rayDirection = Vector3.Normalize(farPoint - nearPoint);
+                Ray ray = new Ray(nearPoint, rayDirection);
+                
+                var result = _destructionSystem.TryDestroyBlock(ray, RaycastDistance);
+                if (result.Hit)
+                {
+                    Console.WriteLine($"Hit block at: {result.Position.Value.X}, {result.Position.Value.Y}, {result.Position.Value.Z}");
+                    
+                    // If all blocks destroyed, start respawn timer
+                    if (_destructibleLayer.Count == 0 && !_respawnTimer.HasValue)
+                    {
+                        Console.WriteLine("All blocks destroyed, starting respawn timer");
+                        _respawnTimer = gameTime.TotalGameTime.TotalSeconds + RespawnDelay;
+                    }
+                }
+            }
+        }
+        
+        // Update feedback timer
+        if (_feedbackTimer > 0)
+        {
+            _feedbackTimer -= (float)gameTime.ElapsedGameTime.TotalSeconds;
+            if (_feedbackTimer < 0) _feedbackTimer = 0;
         }
         _previousMouseState = currentMouseState;
 
@@ -263,7 +359,7 @@ public class Game1 : Game
         foreach (var npc in _npcs)
         {
             // Check if NPC should return to start (collected 5 blocks)
-            if (!npc.ReturningToStart && npc.CollectedBlocks.Count >= NpcEntity.MaxCollectedBlocks)
+            if (!npc.ReturningToStart && npc.CollectedBlocks.Count >= npc.StorageCapacity)
             {
                 npc.ReturningToStart = true;
                 npc.TargetBlock = null;
@@ -320,19 +416,31 @@ public class Game1 : Game
                     // Check if close enough to destroy (X,Z distance only)
                     if (distanceXZ <= npc.DestroyRange)
                     {
-                        // Destroy the block and add to NPC's collected blocks
+                        // Apply damage to the block
                         var blockType = _destructibleLayer.GetBlock(npc.TargetBlock.Value.X, npc.TargetBlock.Value.Y, npc.TargetBlock.Value.Z);
-                        npc.CollectedBlocks.Add(blockType);
-                        _destructibleLayer.RemoveBlock(npc.TargetBlock.Value.X, npc.TargetBlock.Value.Y, npc.TargetBlock.Value.Z);
-                        MarkChunkDirtyAt(npc.TargetBlock.Value.X, npc.TargetBlock.Value.Y, npc.TargetBlock.Value.Z);
-
-                        // Clear target to find next block
-                        npc.TargetBlock = null;
-
-                        // Check if all blocks destroyed
-                        if (_destructibleLayer.Count == 0 && !_respawnTimer.HasValue)
+                        Vector3 blockPosition = new Vector3(npc.TargetBlock.Value.X, npc.TargetBlock.Value.Y, npc.TargetBlock.Value.Z);
+                        
+                        bool blockDestroyed = _destructibleLayer.DestroyBlock(blockPosition, npc.Strength);
+                        
+                        if (blockDestroyed)
                         {
-                            _respawnTimer = gameTime.TotalGameTime.TotalSeconds + RespawnDelay;
+                            // Block fully destroyed, add to NPC's collected blocks
+                            npc.CollectedBlocks.Add(blockType);
+                            MarkChunkDirtyAt(npc.TargetBlock.Value.X, npc.TargetBlock.Value.Y, npc.TargetBlock.Value.Z);
+
+                            // Clear target to find next block
+                            npc.TargetBlock = null;
+
+                            // Check if all blocks destroyed
+                            if (_destructibleLayer.Count == 0 && !_respawnTimer.HasValue)
+                            {
+                                _respawnTimer = gameTime.TotalGameTime.TotalSeconds + RespawnDelay;
+                            }
+                        }
+                        else
+                        {
+                            // Block damaged but not destroyed - continue attacking same block
+                            MarkChunkDirtyAt(npc.TargetBlock.Value.X, npc.TargetBlock.Value.Y, npc.TargetBlock.Value.Z);
                         }
                     }
                     else
@@ -409,6 +517,9 @@ public class Game1 : Game
             {
                 if (!_blockModels.TryGetValue(instance.Type, out var model)) continue;
 
+                // Get damage percentage for visual tinting
+                float damagePercent = _destructibleLayer.GetDamagePercent(instance.Position);
+
                 foreach (var mesh in model.Meshes)
                 {
                     foreach (BasicEffect effect in mesh.Effects)
@@ -429,6 +540,9 @@ public class Game1 : Game
                         effect.TextureEnabled = true;
                         effect.LightingEnabled = true;
                         effect.EnableDefaultLighting();
+                        
+                        // Apply damage tinting (white -> dark gray)
+                        effect.DiffuseColor = Vector3.Lerp(Vector3.One, new Vector3(0.5f), damagePercent);
                     }
                     mesh.Draw();
                 }
@@ -459,6 +573,7 @@ public class Game1 : Game
         
         DrawDebugHud();
         DrawInventory();
+        DrawMinerStatsAndControls();
 
         base.Draw(gameTime);
     }
@@ -501,6 +616,81 @@ public class Game1 : Game
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         _spriteBatch.DrawString(_debugFont, inventoryText, new Vector2(1400, 12), Color.White);
         _spriteBatch.End();
+    }
+    
+    private void DrawMinerStatsAndControls()
+    {
+        // Get miner stats (assuming first NPC is the miner)
+        if (_npcs.Count == 0) return;
+        var miner = _npcs[0];
+        
+        int strengthCost = NpcEntity.GetUpgradeCost(miner.StrengthLevel);
+        int storageCost = NpcEntity.GetUpgradeCost(miner.StorageLevel);
+        
+        // Stats display
+        string statsText =
+            $"=== MINER STATS ===\n" +
+            $"Strength: {miner.Strength} (Level {miner.StrengthLevel})\n" +
+            $"Storage: {miner.StorageCapacity} (Level {miner.StorageLevel})\n" +
+            $"Difficulty: {_destructibleLayer.DifficultyMultiplier:F2}x\n" +
+            $"\n" +
+            $"=== UPGRADES ===\n" +
+            $"[1] Strength [{strengthCost} Blue]\n" +
+            $"[2] Storage [{storageCost} Blue]\n" +
+            $"\n" +
+            $"=== CONVERT ===\n" +
+            $"[3] Blue->Red (100:1)\n" +
+            $"[4] Red->Green (100:1)";
+        
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+        
+        // Draw stats at bottom-left
+        _spriteBatch.DrawString(_debugFont, statsText, new Vector2(10, 620), Color.White);
+        
+        // Draw clickable button outlines (2x2 grid)
+        Texture2D pixel = new Texture2D(GraphicsDevice, 1, 1);
+        pixel.SetData(new[] { Color.White });
+        
+        Rectangle upgradeStrengthButton = new Rectangle(310, 720, 250, 30);
+        Rectangle upgradeStorageButton = new Rectangle(570, 720, 250, 30);
+        Rectangle convertBlueToRedButton = new Rectangle(310, 760, 250, 30);
+        Rectangle convertRedToGreenButton = new Rectangle(570, 760, 250, 30);
+        
+        // Draw button backgrounds and borders
+        DrawButton(_spriteBatch, pixel, _debugFont, upgradeStrengthButton, $"Upgrade Strength [{strengthCost}]", Color.DarkBlue);
+        DrawButton(_spriteBatch, pixel, _debugFont, upgradeStorageButton, $"Upgrade Storage [{storageCost}]", Color.DarkGreen);
+        DrawButton(_spriteBatch, pixel, _debugFont, convertBlueToRedButton, "Blue->Red (100:1)", Color.DarkCyan);
+        DrawButton(_spriteBatch, pixel, _debugFont, convertRedToGreenButton, "Red->Green (100:1)", Color.DarkMagenta);
+        
+        // Draw feedback message if active
+        if (_feedbackTimer > 0)
+        {
+            Vector2 feedbackPos = new Vector2(310, 800);
+            _spriteBatch.DrawString(_debugFont, _feedbackMessage, feedbackPos, _feedbackColor);
+        }
+        
+        _spriteBatch.End();
+        pixel.Dispose();
+    }
+    
+    private void DrawButton(SpriteBatch spriteBatch, Texture2D pixel, SpriteFont font, Rectangle rect, string text, Color bgColor)
+    {
+        // Draw background
+        spriteBatch.Draw(pixel, rect, bgColor);
+        
+        // Draw border
+        spriteBatch.Draw(pixel, new Rectangle(rect.X, rect.Y, rect.Width, 2), Color.White); // Top
+        spriteBatch.Draw(pixel, new Rectangle(rect.X, rect.Bottom - 2, rect.Width, 2), Color.White); // Bottom
+        spriteBatch.Draw(pixel, new Rectangle(rect.X, rect.Y, 2, rect.Height), Color.White); // Left
+        spriteBatch.Draw(pixel, new Rectangle(rect.Right - 2, rect.Y, 2, rect.Height), Color.White); // Right
+        
+        // Draw text centered
+        Vector2 textSize = font.MeasureString(text);
+        Vector2 textPos = new Vector2(
+            rect.X + (rect.Width - textSize.X) / 2,
+            rect.Y + (rect.Height - textSize.Y) / 2
+        );
+        spriteBatch.DrawString(font, text, textPos, Color.White);
     }
 
     private void CalculateModelTransform(Model model, out float scale, out Vector3 offset)
